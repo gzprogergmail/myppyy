@@ -1,13 +1,14 @@
 import tkinter as tk
 import random
+import time
 from functools import partial
 
 CANVAS_HEIGHT = 600
-CANVAS_WIDTH = 500
+CANVAS_WIDTH = 450
 RUNWAY_LEFT_X_POSITION = 100
 RUNWAY_RIGHT_X_POSITION = CANVAS_WIDTH -100
 RUNWAY_LENGTH = 30
-CAR_WIDTH = 30
+CAR_WIDTH = 35
 CAR_HEIGHT = 50
 
 def get_random_color():
@@ -47,7 +48,7 @@ def move_lines(lines):
 
 # Function to move the incoming cars
 def move_incoming_cars(incoming_cars, car):
-    for incoming_car in incoming_cars:
+    for incoming_car in incoming_cars.copy():
         canvas.move(incoming_car, 0, 6)  # rectangles move slightly faster than the lines
         if canvas.coords(incoming_car)[3] > CANVAS_HEIGHT:  # if the rectangle has moved off the bottom of the canvas
             canvas.delete(incoming_car)  # delete the rectangle
@@ -55,6 +56,8 @@ def move_incoming_cars(incoming_cars, car):
             # create a new rectangle at a random x position at the top
             incoming_cars.append(create_random_rectangle(0))  # add the new rectangle to the list
         elif do_overlap(canvas.coords(car), canvas.coords(incoming_car)):
+            canvas.delete(incoming_car)
+            incoming_cars.remove(incoming_car)
             flash_main_car(car)
     window.after(50, move_incoming_cars, incoming_cars, car)
     
@@ -76,13 +79,15 @@ def move_main_car_right(event, car):
     if x2 < RUNWAY_RIGHT_X_POSITION:
         canvas.move(car, 5, 0)
 
-def flash_main_car(car, color_index=0):
-    colors = ['grey', 'white']
-    canvas.itemconfig(car, fill=colors[color_index % 2])
-    if color_index < 3:  
-        window.after(200, flash_main_car, car, color_index + 1)
-    else:
-        reset_main_car(car)
+def flash_main_car(car):
+    for _ in range(5):
+        canvas.itemconfig(car, fill='red')
+        window.update()
+        time.sleep(0.1)
+        canvas.itemconfig(car, fill='white')
+        window.update()
+        time.sleep(0.1)
+    reset_main_car(car)
 
 def do_overlap(rect1, rect2):
     x1, y1, x2, y2 = rect1  # Coordinates of the first rectangle
