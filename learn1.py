@@ -11,13 +11,53 @@ RUNWAY_LENGTH = 30
 CAR_WIDTH = 35
 CAR_HEIGHT = 50
 
+def init_score_and_lives_display(canvas):
+    global _score_text, _lives_text, _score, _lives
+    _score = 0
+    _lives = 5
+    _score_text = canvas.create_text(RUNWAY_LEFT_X_POSITION - 50, 10, text=f"Score: {_score}", fill='black', font=('Helvetica', 15))
+    _lives_text = canvas.create_text(RUNWAY_RIGHT_X_POSITION + 50, 10, text=f"Lives: {_lives}", fill='black', font=('Helvetica', 15))
+    _display_score()
+    _display_lives()
+
 def get_random_color():
     colors = ['red', 'green', 'blue', 'yellow', 'purple', 'orange']
     return random.choice(colors)
 
-def create_random_rectangle(y):
-   x = random.randint(RUNWAY_LEFT_X_POSITION, RUNWAY_RIGHT_X_POSITION - CAR_WIDTH)        
-   return canvas.create_rectangle(x, y, x+CAR_WIDTH, y+CAR_HEIGHT, fill=get_random_color())
+def create_random_incoming_car(y, existing_incoming_cars):
+    while True:
+        x = random.randint(RUNWAY_LEFT_X_POSITION, RUNWAY_RIGHT_X_POSITION - CAR_WIDTH)
+        new_car = canvas.create_rectangle(x, y, x+CAR_WIDTH, y+CAR_HEIGHT, fill=get_random_color())
+        if not any(do_overlap(canvas.coords(new_car), canvas.coords(car)) for car in existing_incoming_cars):
+            return new_car
+        else:
+            canvas.delete(new_car)
+
+def increase_score():
+    global _score
+    _score += 1
+    _display_score()
+
+def _display_score():
+    global _score, _score_text
+    canvas.itemconfig(_score_text, text=f"Score: {_score}")
+
+def decrease_lives():
+    global _lives
+    _lives -= 1
+    _display_lives()
+
+def _display_lives():
+    global _lives, _lives_text
+    canvas.itemconfig(_lives_text, text=f"Lives: {_lives}")
+
+def is_end_game():
+    global _lives
+    return _lives == 0
+
+def end_game():
+    game_over_text = "Game Over"
+    canvas.create_text(CANVAS_WIDTH/2, CANVAS_HEIGHT/2, text=game_over_text, fill='red', font=('Helvetica', 30))
 
 
 # Create the lines of the runway
@@ -33,7 +73,7 @@ def create_incoming_cars():
     # Create the rectangles at random x positions and colors
     incoming_cars = []
     for i in range(0, CANVAS_HEIGHT, 120):    
-        incoming_cars.append(create_random_rectangle(-i))
+        incoming_cars.append(create_random_incoming_car(-i, incoming_cars))
 
     return incoming_cars
 
@@ -49,16 +89,21 @@ def move_lines(lines):
 # Function to move the incoming cars
 def move_incoming_cars(incoming_cars, car):
     for incoming_car in incoming_cars.copy():
-        canvas.move(incoming_car, 0, 6)  # rectangles move slightly faster than the lines
-        if canvas.coords(incoming_car)[3] > CANVAS_HEIGHT:  # if the rectangle has moved off the bottom of the canvas
-            canvas.delete(incoming_car)  # delete the rectangle
-            incoming_cars.remove(incoming_car)  # remove the rectangle from the list
-            # create a new rectangle at a random x position at the top
-            incoming_cars.append(create_random_rectangle(0))  # add the new rectangle to the list
+        canvas.move(incoming_car, 0, 6)
+        if canvas.coords(incoming_car)[3] > CANVAS_HEIGHT:
+            canvas.delete(incoming_car)
+            incoming_cars.remove(incoming_car)
+            incoming_cars.append(create_random_incoming_car(0, incoming_cars))
+            increase_score()  # Update the score display            
         elif do_overlap(canvas.coords(car), canvas.coords(incoming_car)):
             canvas.delete(incoming_car)
             incoming_cars.remove(incoming_car)
+            incoming_cars.append(create_random_incoming_car(0, incoming_cars))
             flash_main_car(car)
+            decrease_lives()  # Decrement the lives
+            if is_end_game():  # If no lives left
+                end_game()  # End the game
+                return  # Exit the function to stop moving the cars
     window.after(50, move_incoming_cars, incoming_cars, car)
     
 #region main car
@@ -109,7 +154,7 @@ window.title("Moving Runway")
 # Set up the canvas
 canvas = tk.Canvas(window, width=CANVAS_WIDTH, height=CANVAS_HEIGHT, bg='gray')
 canvas.pack()
-
+init_score_and_lives_display(canvas)
 
 # Start moving the lines and rectangles
 lines_list = create_lines()
